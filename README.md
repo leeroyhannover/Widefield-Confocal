@@ -4,4 +4,4 @@ A Correlated Widefield-Confocal Microscopy Dataset for The Deep-learning-based I
 # The pipeline for the data
 Here is the processing pipeline:
 
-![Pipeline](./figs/pipeline.png)
+![Pipeline](./figs/fig1.png)

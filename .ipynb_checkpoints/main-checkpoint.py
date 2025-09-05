@@ -32,10 +32,6 @@ all_c_img = load_and_stack_images(C_PATH)  # expected shape: [z, stack, x, y] or
 all_w_img = load_and_stack_images(W_PATH)
 print("Loaded shapes:", all_c_img.shape, all_w_img.shape)
 
-# Basic sanity check that z-depth matches
-if all_c_img.shape[0] != all_w_img.shape[0]:
-    raise ValueError(f"Z depth mismatch: confocal z={all_c_img.shape[0]}, widefield z={all_w_img.shape[0]}")
-
 # -------------------------------
 # 2) Register widefield to confocal (per z-slab)
 # -------------------------------

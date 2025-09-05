@@ -89,60 +89,73 @@ def list_subfolders_with_string(path, search_string='ZStep'):
 # -------------------------------
 # Load and stack images
 # -------------------------------
+
 def load_and_stack_images(base_dir, folder_regex=r'ZStep_(\d+)', file_extension='.tif'):
     """
-    Load and stack images from subfolders into a 4D NumPy array (z, stack_num, x, y).
+    Load and stack image data from a specified directory into a 4D array (z, stack_num, x, y).
 
     Args:
-        base_dir (str): Root directory containing subfolders.
-        folder_regex (str): Regex pattern to match subfolder names. Default: 'ZStep_(\\d+)'.
-        file_extension (str): File extension to filter images. Default: '.tif'.
+        base_dir (str): Root directory of the image data.
+        folder_regex (str): Regex pattern to match subfolder names. Default is 'ZStep_(\d+)'.
+        file_extension (str): File extension of the image files. Default is '.tif'.
 
     Returns:
-        numpy.ndarray: 4D array of shape (z, stack_num, x, y).
+        numpy.ndarray: A 4D array with shape (z, stack_num, x, y).
     """
+    # Regex pattern for matching folder names
     folder_pattern = re.compile(folder_regex)
 
-    # Collect valid folders with numeric indices
+    # Collect all folders matching the pattern
     folders = []
     for folder_name in os.listdir(base_dir):
         match = folder_pattern.match(folder_name)
         if match and os.path.isdir(os.path.join(base_dir, folder_name)):
-            folders.append((int(match.group(1)), folder_name))
+            x_value = int(match.group(1))  # Extract numeric x
+            folders.append((x_value, folder_name))
 
-    folders.sort(key=lambda x: x[0])
+    # Sort folders by extracted x value
+    folders.sort(key=lambda item: item[0])
+
     if not folders:
-        raise ValueError("No valid subfolders found.")
+        raise ValueError("No folders matching the pattern were found.")
 
-    # Use the first folder to determine z-depth
-    first_folder = os.path.join(base_dir, folders[0][1])
-    tif_files = natsorted([f for f in os.listdir(first_folder) if f.endswith(file_extension)])
-    if not tif_files:
-        raise ValueError("No image files found in the first folder.")
-
+    # Read and stack all image files with the specified extension in each folder
     stacks_by_z = []
 
-    # Iterate over z-layers
-    for z_idx in range(len(tif_files)):
-        z_stack = []
+    # Get image file list from the first folder
+    first_folder_path = os.path.join(base_dir, folders[0][1])
+    tif_files = natsorted([f for f in os.listdir(first_folder_path) if f.endswith(file_extension)])
 
-        for _, folder_name in folders:
+    # Read images layer by layer (by z)
+    for z_idx in range(len(tif_files)):
+        z_stack = []  # Store all images for the current z-layer
+
+        for x_value, folder_name in folders:
             folder_path = os.path.join(base_dir, folder_name)
             tif_files_in_folder = natsorted([f for f in os.listdir(folder_path) if f.endswith(file_extension)])
 
             if z_idx < len(tif_files_in_folder):
                 img_path = os.path.join(folder_path, tif_files_in_folder[z_idx])
+
+                # Read image and convert to NumPy array
                 img = Image.open(img_path)
-                img_array = np.array(img, dtype=np.float32)
+                img_array = np.array(img, dtype=np.float32)  # Read as float32 for normalization
+                # img_array = normIMG(img_array)  # Normalize image to range 0-1
+                
                 z_stack.append(img_array)
+                
 
+        # Stack current z-layer images into shape (stack_num, x, y)
         if z_stack:
-            z_stack = np.stack([normIMG(img) for img in z_stack], axis=0)
-            stacks_by_z.append(z_stack)
+            # stacks_by_z.append(temp)
+            temp = normIMG(z_stack)
+            stacks_by_z.append(np.stack(temp, axis=0))
 
-    if not stacks_by_z:
-        raise ValueError("No images were loaded.")
+    # Stack into final 4D array (z, stack_num, x, y)
+    if stacks_by_z:
+        final_array = np.stack(stacks_by_z, axis=0)
+        print(f"Final stacked image shape: {final_array.shape}")
+        return final_array
+    else:
+        raise ValueError("No valid image files were found.")
 
-    final_array = np.stack(stacks_by_z, axis=0)
-    print(f"Final stacked shape: {final_array.shape}")
-    return final_array
